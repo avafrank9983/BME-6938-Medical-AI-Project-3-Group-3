@@ -1,86 +1,39 @@
-"""
-Data preparation utilities for training and evaluation.
-"""
-
+"""Data preparation utilities."""
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
+from tokenizer_utils import LSTMTTokenizer
 from preprocess import preprocess_sentences
-from data_loader import get_label_to_id
 
+LABEL_TO_ID = {"background":0,"objective":1,"methods":2,"results":3,"conclusions":4}
 
-def prepare_lstm_data(tokenizer: LSTMTTokenizer, dataset, max_length: int = 128):
-    """
-    Prepare data for LSTM training.
+def prepare_lstm_data(tokenizer, dataset, max_length=128, batch_size=32):
+    train_texts = preprocess_sentences(dataset["train"]["text"])
+    train_labels = [LABEL_TO_ID[l] for l in dataset["train"]["label"]]
+    val_texts = preprocess_sentences(dataset["validation"]["text"])
+    val_labels = [LABEL_TO_ID[l] for l in dataset["validation"]["label"]]
+    test_texts = preprocess_sentences(dataset["test"]["text"])
+    test_labels = [LABEL_TO_ID[l] for l in dataset["test"]["label"]]
+    print("Building vocabulary...")
+    tokenizer.build_vocab(train_texts)
+    print(f"Vocab size: {tokenizer.vocab_size}")
+    def make_loader(texts, labels, shuffle=False):
+        encoded = tokenizer.batch_encode(texts, max_length)
+        tensor_labels = torch.tensor(labels, dtype=torch.long)
+        ds = TensorDataset(encoded, tensor_labels)
+        return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+    return make_loader(train_texts,train_labels,shuffle=True),make_loader(val_texts,val_labels),make_loader(test_texts,test_labels)
 
-    Args:
-        tokenizer: LSTM tokenizer
-        dataset: Hugging Face dataset
-        max_length: Maximum sequence length
-
-    Returns:
-        DataLoader objects for train/val/test
-    """
-    label_to_id = get_label_to_id()
-
-    def create_dataloader(split_data, batch_size=32):
-        texts = preprocess_sentences(split_data['text'])
-        labels = [label_to_id[label] for label in split_data['label']]  # Convert string labels to integers
-
-        # Build vocab if training
-        if split_data == dataset['train']:
-            tokenizer.build_vocab(texts)
-
-        # Encode texts
-        encoded_texts = tokenizer.batch_encode(texts, max_length)
-
-        # Create dataset and dataloader
-        tensor_dataset = TensorDataset(encoded_texts, torch.tensor(labels, dtype=torch.long))
-        # ADD SPEED IMPROVEMENTS: num_workers and pin_memory
-        dataloader = DataLoader(tensor_dataset, 
-                              batch_size=batch_size, 
-                              shuffle=(split_data == dataset['train']),
-                              num_workers=4,  # Use multiple workers for data loading
-                              pin_memory=True)  # Pin memory for faster GPU transfer
-
-        return dataloader
-
-    train_loader = create_dataloader(dataset['train'])
-    val_loader = create_dataloader(dataset['validation'])
-    test_loader = create_dataloader(dataset['test'])
-
-    return train_loader, val_loader, test_loader
-
-
-def prepare_transformer_data(tokenizer: TransformerTokenizer, dataset, max_length: int = 128):
-    """
-    Prepare data for transformer training.
-
-    Args:
-        tokenizer: Transformer tokenizer
-        dataset: Hugging Face dataset
-        max_length: Maximum sequence length
-
-    Returns:
-        Dataset objects for train/val/test
-    """
+def prepare_transformer_data(tokenizer, dataset, max_length=128):
+    def convert_labels(examples):
+        examples["label"] = [LABEL_TO_ID[l] for l in examples["label"]]
+        return examples
     def tokenize_function(examples):
-        texts = preprocess_sentences(examples['text'])
-        return tokenizer.tokenizer(
-            texts,
-            truncation=True,
-            padding='max_length',
-            max_length=max_length
-        )
-
-    # Tokenize datasets
-    train_dataset = dataset['train'].map(tokenize_function, batched=True)
-    val_dataset = dataset['validation'].map(tokenize_function, batched=True)
-    test_dataset = dataset['test'].map(tokenize_function, batched=True)
-
-    # Set format for PyTorch
-    train_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
-    val_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
-    test_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
-
-    return train_dataset, val_dataset, test_dataset
+        texts = preprocess_sentences(examples["text"])
+        return tokenizer.tokenizer(texts, truncation=True, padding="max_length", max_length=max_length)
+    print("Tokenizing...")
+    train_ds = dataset["train"].map(convert_labels,batched=True).map(tokenize_function,batched=True)
+    val_ds = dataset["validation"].map(convert_labels,batched=True).map(tokenize_function,batched=True)
+    test_ds = dataset["test"].map(convert_labels,batched=True).map(tokenize_function,batched=True)
+    cols = ["input_ids","attention_mask","label"]
+    for ds in [train_ds,val_ds,test_ds]: ds.set_format(type="torch",columns=cols)
+    return train_ds, val_ds, test_ds
