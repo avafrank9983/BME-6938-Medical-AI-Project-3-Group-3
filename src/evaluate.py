@@ -1,5 +1,22 @@
 """
-Evaluation script with metrics and error analysis.
+Evaluation module for model performance assessment and error analysis.
+
+This module provides:
+1. Model loading utilities (LSTM and Transformer)
+2. Evaluation metrics computation (accuracy, precision, recall, F1)
+3. Confusion matrix generation for error analysis
+4. Per-class performance breakdown
+5. Error pattern identification
+6. Qualitative analysis of predictions
+
+Metrics reported at multiple levels:
+- Micro-averaging: treats all cases equally (useful for imbalanced data)
+- Macro-averaging: treats all classes equally (reveals per-class disparities)
+- Weighted-averaging: accounts for class frequency (overall system performance)
+
+Usage:
+    python evaluate.py --model_path results/lstm_model.pth --model_type lstm
+    python evaluate.py --model_path results/transformer_model --model_type transformer
 """
 
 import torch

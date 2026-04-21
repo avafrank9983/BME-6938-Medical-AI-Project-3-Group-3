@@ -28,15 +28,41 @@ def train_lstm_model(model: nn.Module,
                     learning_rate: float = 0.001,
                     device: str = 'cuda'):
     """
-    Train LSTM model.
+    Train LSTM baseline model for sentence classification.
+    
+    Implements standard supervised learning with validation monitoring:
+    - Forward pass through model
+    - Backward pass with gradient computation
+    - Weight updates using Adam optimizer
+    - Validation loss tracking for early stopping
+    - Best model checkpointing based on validation performance
+    
+    The model uses Cross-Entropy Loss appropriate for multi-class (5-way) classification.
+    Dropout regularization during training helps prevent overfitting on this moderate-sized dataset.
 
     Args:
-        model: LSTM model
-        train_loader: Training data loader
-        val_loader: Validation data loader
-        num_epochs: Number of training epochs
-        learning_rate: Learning rate
-        device: Device to train on
+        model (nn.Module): Initialized LSTM classifier model
+        train_loader (DataLoader): Training data batches (sentences & labels)
+        val_loader (DataLoader): Validation data batches for monitoring
+        num_epochs (int): Number of passes through training data (default: 10)
+        learning_rate (float): Adam optimizer learning rate, default 0.001
+                              (slower than typical deep learning; appropriate for small model)
+        device (str): 'cuda' for GPU or 'cpu' for CPU (default: 'cuda')
+                      automatically falls back to CPU if GPU unavailable
+
+    Returns:
+        None (model saved to results/lstm_model.pth)
+        
+    Side Effects:
+        - Creates results/ directory if not present
+        - Saves best model checkpoint to results/lstm_model.pth
+        - Prints training progress to console (loss every 50 batches, metrics every epoch)
+        
+    Training Details:
+        - Uses CrossEntropyLoss (standard for multi-class classification)
+        - Adam optimizer with learning rate 0.001
+        - Validation monitored each epoch; best model saved
+        - Early stopping possible if validation loss plateaus (future enhancement)
     """
     # USE DEVICE PROPERLY
     device = torch.device(device if torch.cuda.is_available() else "cpu")
@@ -104,13 +130,50 @@ def train_lstm_model(model: nn.Module,
 
 def train_transformer_model(model, train_dataset, val_dataset, config: dict):
     """
-    Train transformer model using Hugging Face Trainer.
+    Train fine-tuned transformer model using Hugging Face Trainer API.
+    
+    The Trainer API abstracts common PyTorch training patterns and provides:
+    - Distributed training support (if multiple GPUs available)
+    - Mixed precision training (FP16 on GPU for memory efficiency)
+    - Automatic gradient accumulation (effective larger batch sizes)
+    - Learning rate scheduling (linear warmup then linear decay)
+    - Validation point evaluation
+    - Best model checkpointing
+    - Logging and progress tracking
+    
+    Fine-tuning strategy for BERT:
+    - Start with bert-base-uncased pre-trained weights (general English)
+    - Update all layers based on domain data (PubMed abstracts)
+    - Learning rate 2e-5 chosen to prevent catastrophic forgetting of pre-training
+    - 5 epochs sufficient; longer training risks overfitting to domain
+    - Weight decay (L2 regularization) helps with generalization
 
     Args:
-        model: Transformer model
-        train_dataset: Training dataset
-        val_dataset: Validation dataset
-        config: Training configuration
+        model: Pre-initialized transformer model (from create_transformer_model())
+        train_dataset: Hugging Face Dataset object with training sentences and labels
+                      (must have 'input_ids', 'attention_mask', 'label' columns)
+        val_dataset: Hugging Face Dataset object for validation (same schema)
+        config (dict): Training configuration dict with parameters:
+                      - output_dir: checkpoint directory
+                      - learning_rate: fine-tuning LR (typically 2e-5 for BERT)
+                      - per_device_train_batch_size: batch size for GPU memory
+                      - num_train_epochs: passes through data
+                      - weight_decay: L2 regularization coefficient
+                      - etc. (see get_model_config() for full options)
+
+    Returns:
+        None (model saved to output_dir from config)
+        
+    Side Effects:
+        - Saves model and tokenizer to output_dir
+        - Generates training logs and metrics files
+        - Creates checkpoint directories for each evaluation epoch
+        
+    Trainer Features Used:
+        - Automatic validation at end of each epoch
+        - Best model selection based on eval F1-score
+        - Learning rate scheduling with warmup
+        - Gradient accumulation (if batch_size < effective_batch_size)
     """
     training_args = TrainingArguments(**config)
 
