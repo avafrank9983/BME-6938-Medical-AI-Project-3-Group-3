@@ -36,7 +36,12 @@ def prepare_lstm_data(tokenizer: LSTMTTokenizer, dataset, max_length: int = 128)
 
         # Create dataset and dataloader
         tensor_dataset = TensorDataset(encoded_texts, torch.tensor(labels, dtype=torch.long))
-        dataloader = DataLoader(tensor_dataset, batch_size=batch_size, shuffle=(split_data == dataset['train']))
+        # ADD SPEED IMPROVEMENTS: num_workers and pin_memory
+        dataloader = DataLoader(tensor_dataset, 
+                              batch_size=batch_size, 
+                              shuffle=(split_data == dataset['train']),
+                              num_workers=4,  # Use multiple workers for data loading
+                              pin_memory=True)  # Pin memory for faster GPU transfer
 
         return dataloader
 

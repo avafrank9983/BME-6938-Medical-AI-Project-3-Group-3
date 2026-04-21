@@ -38,7 +38,13 @@ def train_lstm_model(model: nn.Module,
         learning_rate: Learning rate
         device: Device to train on
     """
+    # USE DEVICE PROPERLY
+    device = torch.device(device if torch.cuda.is_available() else "cpu")
     model.to(device)
+    
+    # Create results directory
+    os.makedirs('results', exist_ok=True)
+    
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -49,7 +55,7 @@ def train_lstm_model(model: nn.Module,
         model.train()
         train_loss = 0.0
 
-        for batch_x, batch_y in tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}'):
+        for i, (batch_x, batch_y) in enumerate(train_loader):
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
 
             optimizer.zero_grad()
@@ -59,6 +65,10 @@ def train_lstm_model(model: nn.Module,
             optimizer.step()
 
             train_loss += loss.item()
+
+            # ADD PROGRESS PRINTING
+            if (i + 1) % 50 == 0:  # Print every 50 batches
+                print(f"Epoch {epoch+1}, Batch {i+1}, Loss: {loss.item():.4f}")
 
         train_loss /= len(train_loader)
 
@@ -125,6 +135,7 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--max_length', type=int, default=128, help='Maximum sequence length')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--debug', action='store_true', help='Use small dataset subset for debugging')
 
     args = parser.parse_args()
 
@@ -134,6 +145,12 @@ def main():
     # Load data
     print("Loading dataset...")
     dataset = load_pubmed_rct_data()
+
+    # USE A SMALL SUBSET FOR DEBUGGING
+    if args.debug:
+        print("Using debug subset: 2000 train, 500 val samples")
+        dataset['train'] = dataset['train'].select(range(2000))
+        dataset['validation'] = dataset['validation'].select(range(500))
 
     if args.model == 'lstm':
         # Prepare LSTM data
