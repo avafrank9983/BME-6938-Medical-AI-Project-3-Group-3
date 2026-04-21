@@ -3,8 +3,7 @@ Tokenization utilities for both LSTM and transformer models.
 """
 
 import torch
-from torchtext.vocab import build_vocab_from_iterator
-from torchtext.data.utils import get_tokenizer
+import re
 from transformers import AutoTokenizer
 from typing import List, Dict, Tuple, Any
 from collections import Counter
@@ -13,19 +12,35 @@ from collections import Counter
 class LSTMTTokenizer:
     """Tokenizer for LSTM model with custom vocabulary."""
 
-    def __init__(self, vocab_size: int = 30000, min_freq: int = 2):
+    def __init__(self, max_vocab_size: int = 30000, min_freq: int = 2):
         """
         Initialize LSTM tokenizer.
 
         Args:
-            vocab_size: Maximum vocabulary size
+            max_vocab_size: Maximum vocabulary size
             min_freq: Minimum frequency for words to be included
         """
-        self.vocab_size = vocab_size
+        self.max_vocab_size = max_vocab_size
         self.min_freq = min_freq
-        self.tokenizer = get_tokenizer('basic_english')
         self.vocab = None
         self.special_tokens = ['<pad>', '<unk>', '<sos>', '<eos>']
+        self.word_to_idx = {}
+        self.idx_to_word = {}
+
+    def _tokenize(self, text: str) -> List[str]:
+        """
+        Basic English tokenization.
+
+        Args:
+            text: Input text
+
+        Returns:
+            List of tokens
+        """
+        # Simple tokenization: lowercase, split on whitespace and punctuation
+        text = text.lower()
+        tokens = re.findall(r'\b\w+\b', text)
+        return tokens
 
     def build_vocab(self, texts: List[str]) -> None:
         """
@@ -34,19 +49,27 @@ class LSTMTTokenizer:
         Args:
             texts: List of text strings
         """
-        def yield_tokens():
-            for text in texts:
-                yield self.tokenizer(text)
+        # Count word frequencies
+        counter = Counter()
+        for text in texts:
+            tokens = self._tokenize(text)
+            counter.update(tokens)
 
-        self.vocab = build_vocab_from_iterator(
-            yield_tokens(),
-            specials=self.special_tokens,
-            max_tokens=self.vocab_size,
-            min_freq=self.min_freq
-        )
+        # Build vocabulary with special tokens first
+        self.word_to_idx = {token: idx for idx, token in enumerate(self.special_tokens)}
 
-        # Set default index for unknown tokens
-        self.vocab.set_default_index(self.vocab['<unk>'])
+        # Add frequent words
+        for word, freq in counter.most_common(self.max_vocab_size - len(self.special_tokens)):
+            if freq >= self.min_freq:
+                self.word_to_idx[word] = len(self.word_to_idx)
+
+        # Build reverse mapping
+        self.idx_to_word = {idx: word for word, idx in self.word_to_idx.items()}
+
+    @property
+    def vocab_size(self):
+        """Get the vocabulary size."""
+        return len(self.word_to_idx) if self.word_to_idx else 0
 
     def encode(self, text: str, max_length: int = 128) -> List[int]:
         """
@@ -59,14 +82,20 @@ class LSTMTTokenizer:
         Returns:
             List of token IDs
         """
-        tokens = self.tokenizer(text)
-        token_ids = self.vocab(tokens)
+        if not self.word_to_idx:
+            raise ValueError("Vocabulary not built. Call build_vocab() first.")
+
+        tokens = self._tokenize(text)
+        token_ids = [self.word_to_idx.get(token, self.word_to_idx['<unk>']) for token in tokens]
+
+        # Add SOS and EOS tokens
+        token_ids = [self.word_to_idx['<sos>']] + token_ids + [self.word_to_idx['<eos>']]
 
         # Truncate or pad
         if len(token_ids) > max_length:
             token_ids = token_ids[:max_length]
         else:
-            token_ids.extend([self.vocab['<pad>']] * (max_length - len(token_ids)))
+            token_ids.extend([self.word_to_idx['<pad>']] * (max_length - len(token_ids)))
 
         return token_ids
 

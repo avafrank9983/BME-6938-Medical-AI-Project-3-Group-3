@@ -15,7 +15,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from data_loader import load_pubmed_rct_data, get_class_labels
 from preprocess import preprocess_sentences
-from tokenize import LSTMTTokenizer, TransformerTokenizer
+from tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
 from model_lstm import LSTMClassifier
 from utils import compute_metrics
 
@@ -251,5 +251,5 @@ def main():
 
 if __name__ == '__main__':
     # Import here to avoid circular import
-    from train import prepare_lstm_data, prepare_transformer_data
+    from data_utils import prepare_lstm_data, prepare_transformer_data
     main()

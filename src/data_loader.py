@@ -30,11 +30,11 @@ def get_class_labels() -> Dict[int, str]:
         Dictionary mapping class indices to class names
     """
     return {
-        0: 'Background',
-        1: 'Objective',
-        2: 'Methods',
-        3: 'Results',
-        4: 'Conclusions'
+        0: 'background',
+        1: 'objective',
+        2: 'methods',
+        3: 'results',
+        4: 'conclusions'
     }
 
 
@@ -46,9 +46,9 @@ def get_label_to_id() -> Dict[str, int]:
         Dictionary mapping class names to class indices
     """
     return {
-        'Background': 0,
-        'Objective': 1,
-        'Methods': 2,
-        'Results': 3,
-        'Conclusions': 4
+        'background': 0,
+        'objective': 1,
+        'methods': 2,
+        'results': 3,
+        'conclusions': 4
     }
