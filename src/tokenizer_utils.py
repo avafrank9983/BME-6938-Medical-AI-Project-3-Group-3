@@ -4,7 +4,6 @@ Tokenization utilities for both LSTM and transformer models.
 
 import torch
 import re
-from transformers import AutoTokenizer
 from typing import List, Dict, Tuple, Any
 from collections import Counter
 
@@ -66,6 +65,9 @@ class LSTMTTokenizer:
         # Build reverse mapping
         self.idx_to_word = {idx: word for word, idx in self.word_to_idx.items()}
 
+        # Set default index for unknown tokens
+        self.default_index = self.word_to_idx['<unk>']
+
     @property
     def vocab_size(self):
         """Get the vocabulary size."""
@@ -124,6 +126,7 @@ class TransformerTokenizer:
         Args:
             model_name: Hugging Face model name
         """
+        from transformers import AutoTokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def encode(self, text: str, max_length: int = 128) -> Dict[str, torch.Tensor]:

@@ -207,7 +207,7 @@ def main():
         _, _, test_loader = train.prepare_lstm_data(tokenizer, dataset, args.max_length)
 
         # Load model
-        vocab_size = len(tokenizer.vocab)
+        vocab_size = tokenizer.vocab_size
         model = load_lstm_model(args.model_path, vocab_size)
 
         # Evaluate

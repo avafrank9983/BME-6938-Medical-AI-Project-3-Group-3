@@ -144,7 +144,7 @@ def main():
         )
 
         # Create model
-        vocab_size = len(tokenizer.vocab)
+        vocab_size = tokenizer.vocab_size
         model = LSTMClassifier(vocab_size=vocab_size)
 
         # Train model
