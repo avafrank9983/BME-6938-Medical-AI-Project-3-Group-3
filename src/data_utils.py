@@ -1,8 +1,8 @@
 """Data preparation utilities."""
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from tokenizer_utils import LSTMTTokenizer
-from preprocess import preprocess_sentences
+from src.tokenizer_utils import LSTMTTokenizer
+from src.preprocess import preprocess_sentences
 
 LABEL_TO_ID = {"background":0,"objective":1,"methods":2,"results":3,"conclusions":4}
 

@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import argparse
+from src import train
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import classification_report, confusion_matrix
@@ -30,11 +31,11 @@ import numpy as np
 import os
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from data_loader import load_pubmed_rct_data, get_class_labels
-from preprocess import preprocess_sentences
-from tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
-from model_lstm import LSTMClassifier
-from utils import compute_metrics
+from src.data_loader import load_pubmed_rct_data, get_class_labels
+from src.preprocess import preprocess_sentences
+from src.tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
+from src.model_lstm import LSTMClassifier
+from src.utils import compute_metrics
 
 
 def load_lstm_model(model_path: str, vocab_size: int) -> nn.Module:
@@ -70,7 +71,7 @@ def load_transformer_model(model_path: str) -> AutoModelForSequenceClassificatio
 
 def evaluate_lstm_model(model: nn.Module,
                        test_loader: DataLoader,
-                       device: str = 'cuda') -> tuple:
+                       device: str = 'cpu') -> tuple:
     """
     Evaluate LSTM model.
 
@@ -268,5 +269,5 @@ def main():
 
 if __name__ == '__main__':
     # Import here to avoid circular import
-    from data_utils import prepare_lstm_data, prepare_transformer_data
+    from src.data_utils import prepare_lstm_data, prepare_transformer_data
     main()

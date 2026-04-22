@@ -10,12 +10,12 @@ import argparse
 import os
 from transformers import Trainer, TrainingArguments
 
-from data_loader import load_pubmed_rct_data
-from tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
-from data_utils import prepare_lstm_data, prepare_transformer_data
-from model_lstm import LSTMClassifier
-from model_transformer import create_transformer_model, get_model_config
-from utils import set_seed, compute_metrics
+from src.data_loader import load_pubmed_rct_data
+from src.tokenizer_utils import LSTMTTokenizer, TransformerTokenizer
+from src.data_utils import prepare_lstm_data, prepare_transformer_data
+from src.model_lstm import LSTMClassifier
+from src.model_transformer import create_transformer_model, get_model_config
+from src.utils import set_seed, compute_metrics
 
 
 def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.001, device="cuda"):
