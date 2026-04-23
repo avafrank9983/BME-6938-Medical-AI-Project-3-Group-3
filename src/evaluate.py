@@ -218,6 +218,9 @@ def main():
     dataset = load_pubmed_rct_data()
     class_names = list(get_class_labels().values())
 
+    # DEBUG MODE (limit dataset size to avoid long runtime)
+    dataset["test"] = dataset["test"].select(range(500))
+
     if args.model_type == 'lstm':
         # Prepare LSTM data
         print("Preparing LSTM data...")
