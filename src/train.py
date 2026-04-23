@@ -5,9 +5,9 @@ Training script for LSTM and Transformer models.
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 import argparse
 import os
+
 from transformers import Trainer, TrainingArguments
 
 from src.data_loader import load_pubmed_rct_data
@@ -18,14 +18,24 @@ from src.model_transformer import create_transformer_model, get_model_config
 from src.utils import set_seed, compute_metrics
 
 
-def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.001, device="cuda"):
+# -------------------------
+# LSTM TRAINING LOOP
+# -------------------------
+def train_lstm_model(
+    model,
+    train_loader,
+    val_loader,
+    num_epochs=10,
+    learning_rate=0.001,
+    device="cpu"
+):
 
     device = torch.device(device if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    RESULTS_DIR = os.path.join(BASE_DIR, "results")
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    results_dir = os.path.join(base_dir, "results")
+    os.makedirs(results_dir, exist_ok=True)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -37,12 +47,12 @@ def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_ra
         model.train()
         train_loss = 0
 
-        for i, (x, y) in enumerate(train_loader):
+        for x, y in train_loader:
             x, y = x.to(device), y.to(device)
 
             optimizer.zero_grad()
-            out = model(x)
-            loss = criterion(out, y)
+            outputs = model(x)
+            loss = criterion(outputs, y)
             loss.backward()
             optimizer.step()
 
@@ -50,6 +60,7 @@ def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_ra
 
         train_loss /= len(train_loader)
 
+        # Validation
         model.eval()
         val_loss = 0
         preds, labels = [], []
@@ -57,11 +68,12 @@ def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_ra
         with torch.no_grad():
             for x, y in val_loader:
                 x, y = x.to(device), y.to(device)
-                out = model(x)
-                loss = criterion(out, y)
+                outputs = model(x)
+
+                loss = criterion(outputs, y)
                 val_loss += loss.item()
 
-                preds.extend(torch.argmax(out, 1).cpu().numpy())
+                preds.extend(torch.argmax(outputs, 1).cpu().numpy())
                 labels.extend(y.cpu().numpy())
 
         val_loss /= len(val_loader)
@@ -72,18 +84,21 @@ def train_lstm_model(model, train_loader, val_loader, num_epochs=10, learning_ra
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            save_path = os.path.join(RESULTS_DIR, "lstm_model.pth")
+            save_path = os.path.join(results_dir, "lstm_model.pth")
             torch.save(model.state_dict(), save_path)
             print("Saved model:", save_path)
 
 
+# -------------------------
+# TRANSFORMER TRAINING
+# -------------------------
 def train_transformer_model(model, train_dataset, val_dataset, config):
 
-    args = TrainingArguments(**config)
+    training_args = TrainingArguments(**config)
 
     trainer = Trainer(
         model=model,
-        args=args,
+        args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         compute_metrics=compute_metrics,
@@ -93,6 +108,9 @@ def train_transformer_model(model, train_dataset, val_dataset, config):
     trainer.save_model()
 
 
+# -------------------------
+# MAIN
+# -------------------------
 def main():
 
     parser = argparse.ArgumentParser()
@@ -111,15 +129,25 @@ def main():
     print("Loading dataset...")
     dataset = load_pubmed_rct_data()
 
+    # -------------------------
+    # DEBUG MODE
+    # -------------------------
     if args.debug:
         dataset["train"] = dataset["train"].select(range(2000))
         dataset["validation"] = dataset["validation"].select(range(500))
+        dataset["test"] = dataset["test"].select(range(500))
 
+    # -------------------------
+    # LSTM PATH
+    # -------------------------
     if args.model == "lstm":
 
         tokenizer = LSTMTTokenizer()
+
         train_loader, val_loader, test_loader = prepare_lstm_data(
-            tokenizer, dataset, args.max_length
+            tokenizer,
+            dataset,
+            args.max_length
         )
 
         model = LSTMClassifier(vocab_size=tokenizer.vocab_size)
@@ -132,21 +160,40 @@ def main():
             args.learning_rate,
         )
 
+    # -------------------------
+    # TRANSFORMER PATH
+    # -------------------------
     else:
 
         tokenizer = TransformerTokenizer()
+
         train_dataset, val_dataset, test_dataset = prepare_transformer_data(
-            tokenizer, dataset, args.max_length
+            tokenizer,
+            dataset,
+            args.max_length,
+            debug=args.debug
         )
 
         model = create_transformer_model()
 
-        config = get_model_config("bert-base-uncased", num_labels=5)
-        config["num_train_epochs"] = args.epochs
-        config["per_device_train_batch_size"] = args.batch_size
-        config["per_device_eval_batch_size"] = args.batch_size
+        config = get_model_config("distilbert-base-uncased", num_labels=5)
 
-        train_transformer_model(model, train_dataset, val_dataset, config)
+        # CPU SAFE CONFIG (IMPORTANT)
+        config["num_train_epochs"] = args.epochs
+        config["per_device_train_batch_size"] = 2
+        config["per_device_eval_batch_size"] = 2
+        config["gradient_accumulation_steps"] = 4
+        config["dataloader_num_workers"] = 0
+        config["fp16"] = False
+        config["logging_steps"] = 50
+        config["report_to"] = []
+
+        train_transformer_model(
+            model,
+            train_dataset,
+            val_dataset,
+            config
+        )
 
 
 if __name__ == "__main__":

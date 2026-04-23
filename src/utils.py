@@ -25,27 +25,27 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-def compute_metrics(y_true, y_pred) -> Dict[str, float]:
-    """
-    Compute classification metrics.
+def compute_metrics(*args):
+    from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-    Args:
-        y_true: True labels
-        y_pred: Predicted labels
+    if len(args) == 1:
+        logits, labels = args[0]
+        preds = logits.argmax(axis=1)
+    elif len(args) == 2:
+        labels, preds = args
+    else:
+        raise ValueError("Invalid arguments")
 
-    Returns:
-        Dictionary with accuracy, precision, recall, f1
-    """
-    accuracy = accuracy_score(y_true, y_pred)
     precision, recall, f1, _ = precision_recall_fscore_support(
-        y_true, y_pred, average='weighted'
+        labels, preds, average="weighted"
     )
+    acc = accuracy_score(labels, preds)
 
     return {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1
+        "accuracy": acc,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall,
     }
 
 

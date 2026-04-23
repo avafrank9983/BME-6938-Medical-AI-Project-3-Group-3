@@ -5,7 +5,7 @@ Transformer model implementation using Hugging Face.
 from transformers import AutoModelForSequenceClassification, AutoConfig
 
 
-def create_transformer_model(model_name: str = "bert-base-uncased",
+def create_transformer_model(model_name: str = "distilbert-base-uncased",
                               num_labels: int = 5) -> AutoModelForSequenceClassification:
     """
     Create a transformer model for sequence classification.
