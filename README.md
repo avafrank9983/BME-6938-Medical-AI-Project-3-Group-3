@@ -2,10 +2,10 @@
 
 **GitHub Repository**: https://github.com/avafrank9983/BME-6938-Medical-AI-Project-3-Group-3
 
-**Team Members and Roles**: [**TODO**: Add your team member names and specific contributions here]
-- Example: "Alice: LSTM Implementation, Data preprocessing, EDA"
-- Example: "Bob: Transformer Fine-tuning, Evaluation metrics, Model comparison"  
-- Example: "Carol: Error Analysis, Clinical relevance assessment, Report writing"
+**Team Members and Roles**:
+- Ava Frank: Code creation, report writing
+- Quinn Mullings: Code troubleshooting, report writing
+- Bryce Williams: Code troubleshooting, report writing
 
 ---
 
